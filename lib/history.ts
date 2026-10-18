@@ -31,6 +31,48 @@ export const MIN_COMPARISON_DAYS = 28;
 //  SD is the spread of the composite across Group B; ICC is the 7-day retest (10 pairs).
 export const MIN_MEANINGFUL_CHANGE = 10;
 
+// The same rule per domain (D56): MDC95 from each domain's own SD (Group B) and 7-day retest ICC,
+// rounded. Domains wobble more than the composite, so each needs its own threshold.
+export const DOMAIN_MIN_CHANGE: Record<PillarId, number> = {
+  activity: 11, // SD 28.0, ICC 0.980 -> 11.0
+  sleep: 10, // SD 18.5, ICC 0.961 -> 10.1
+  nutrition: 13, // SD 10.9, ICC 0.823 -> 12.7
+  stress: 12, // SD 14.1, ICC 0.913 -> 11.6
+  social: 13, // SD 18.0, ICC 0.930 -> 13.2
+  substances: 7, // SD 24.3, ICC 0.988 -> 7.4
+};
+
+export interface DomainChange {
+  id: PillarId;
+  score: number | null;
+  previous: number | null;
+  delta: number | null;
+  meaningful: boolean; // comparable AND larger than that domain's measurement error
+}
+
+// Which areas moved between a check-in and the one before it. `comparable` is false when the two are
+// fewer than MIN_COMPARISON_DAYS apart, and then no domain is marked as changed.
+export function domainChanges(
+  current: CheckIn,
+  previous: CheckIn | undefined,
+  ids: PillarId[]
+): { comparable: boolean; rows: DomainChange[] } {
+  const comparable = !!previous && daysBetween(previous.createdAt, current.createdAt) >= MIN_COMPARISON_DAYS;
+  const rows = ids.map((id) => {
+    const score = typeof current.scores[id] === "number" ? (current.scores[id] as number) : null;
+    const prev = previous && typeof previous.scores[id] === "number" ? (previous.scores[id] as number) : null;
+    const delta = score != null && prev != null ? score - prev : null;
+    return {
+      id,
+      score,
+      previous: prev,
+      delta,
+      meaningful: comparable && delta != null && Math.abs(delta) >= DOMAIN_MIN_CHANGE[id],
+    };
+  });
+  return { comparable, rows };
+}
+
 export interface CheckIn {
   id: string;
   createdAt: string; // ISO

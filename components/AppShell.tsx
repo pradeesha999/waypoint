@@ -8,10 +8,10 @@ import { PILLARS_META } from "@/lib/composite";
 import Landing from "@/components/Landing";
 import StudyFlow from "@/components/StudyFlow";
 import UnifiedAssessment from "@/components/UnifiedAssessment";
-import { buildHistory, ageLabel, dueForRetake } from "@/lib/history";
+import { buildHistory, ageLabel, dueForRetake, domainChanges } from "@/lib/history";
 import { displayNameFromEmail } from "@/lib/profile";
 
-type Screen = "home" | "app" | "auth" | "history" | "study";
+type Screen = "home" | "app" | "auth" | "history" | "study" | "newpass";
 
 export default function AppShell() {
   const [session, setSession] = useState<Session | null>(null);
@@ -19,7 +19,11 @@ export default function AppShell() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+      setSession(s);
+      // Arriving from a password-reset email: ask for the new password before anything else.
+      if (event === "PASSWORD_RECOVERY") setScreen("newpass");
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -75,7 +79,15 @@ export default function AppShell() {
         <main className="screen" id="main">
           {screen === "study" && <StudyFlow onExit={() => setScreen("home")} />}
           {screen === "auth" && <AuthScreen onBack={() => setScreen("home")} />}
-          {screen === "history" && <HistoryScreen onBack={() => setScreen("home")} />}
+          {screen === "history" && (
+            <HistoryScreen
+              onBack={() => setScreen("home")}
+              email={session?.user?.email ?? null}
+              accessToken={session?.access_token ?? null}
+              onDeleted={() => { supabase.auth.signOut(); setScreen("home"); }}
+            />
+          )}
+          {screen === "newpass" && <NewPasswordScreen onDone={() => setScreen("home")} />}
           {screen === "app" && (
             <UnifiedAssessment
               onExit={() => setScreen("home")}
@@ -91,7 +103,7 @@ export default function AppShell() {
 }
 
 function AuthScreen({ onBack }: { onBack: () => void }) {
-  const [mode, setMode] = useState<"in" | "up">("in");
+  const [mode, setMode] = useState<"in" | "up" | "forgot">("in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -101,6 +113,15 @@ function AuthScreen({ onBack }: { onBack: () => void }) {
   async function submit() {
     setBusy(true);
     setMsg(null);
+    if (mode === "forgot") {
+      // The link brings the user back here; AppShell sees PASSWORD_RECOVERY and asks for a new password.
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+      setBusy(false);
+      setMsgKind(error ? "error" : "info");
+      // Same wording whether or not the email has an account, so the form cannot be used to find accounts.
+      setMsg(error ? `${error.message} Please try again in a minute.` : "If an account exists for that email, a reset link is on its way. Check your inbox.");
+      return;
+    }
     const fn =
       mode === "in"
         ? supabase.auth.signInWithPassword({ email, password })
@@ -122,8 +143,12 @@ function AuthScreen({ onBack }: { onBack: () => void }) {
   return (
     <div className="card">
       <p className="eyebrow">Waypoint</p>
-      <h1 className="question">{mode === "in" ? "Sign in" : "Create your account"}</h1>
-      <p className="hint">Save your scores and track them over time. We store only your assessment data, kept private to your account.</p>
+      <h1 className="question">{mode === "in" ? "Sign in" : mode === "up" ? "Create your account" : "Reset your password"}</h1>
+      <p className="hint">
+        {mode === "forgot"
+          ? "Enter your email and we will send you a link to choose a new password."
+          : "Save your scores and track them over time. We store only your assessment data, kept private to your account."}
+      </p>
 
       {/* Real labels, not placeholder-as-label: a placeholder disappears the moment someone starts
           typing, which is exactly when a person who has been interrupted needs to know what the
@@ -146,6 +171,7 @@ function AuthScreen({ onBack }: { onBack: () => void }) {
           onChange={(e) => setEmail(e.target.value)}
         />
       </div>
+      {mode !== "forgot" && (
       <div className="field">
         <label className="visually-hidden" htmlFor="auth-password">
           Password
@@ -160,6 +186,7 @@ function AuthScreen({ onBack }: { onBack: () => void }) {
           onChange={(e) => setPassword(e.target.value)}
         />
       </div>
+      )}
 
       {/* One live region, always in the DOM. A message inserted into a region that only appears
           when there is one is often missed by screen readers — the region has to exist first. */}
@@ -169,8 +196,12 @@ function AuthScreen({ onBack }: { onBack: () => void }) {
 
       <div className="actions">
         <button className="btn btn-ghost" onClick={onBack}>Back</button>
-        <button className="btn btn-primary" onClick={submit} disabled={busy || !email || !password}>
-          {busy ? "…" : mode === "in" ? "Sign in" : "Sign up"}
+        <button
+          className="btn btn-primary"
+          onClick={submit}
+          disabled={busy || !email || (mode !== "forgot" && !password)}
+        >
+          {busy ? "…" : mode === "in" ? "Sign in" : mode === "up" ? "Sign up" : "Send reset link"}
         </button>
       </div>
       <button
@@ -180,14 +211,97 @@ function AuthScreen({ onBack }: { onBack: () => void }) {
       >
         {mode === "in" ? "New here? Create an account" : "Already have an account? Sign in"}
       </button>
+      {mode === "in" && (
+        <button className="linkbtn" onClick={() => { setMode("forgot"); setMsg(null); }}>
+          Forgot your password?
+        </button>
+      )}
       <p className="note">This is a wellbeing screen, not a medical diagnosis.</p>
     </div>
   );
 }
 
-function HistoryScreen({ onBack }: { onBack: () => void }) {
+function NewPasswordScreen({ onDone }: { onDone: () => void }) {
+  const [password, setPassword] = useState("");
+  const [again, setAgain] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  async function save() {
+    if (password.length < 6) return setMsg("Use at least 6 characters.");
+    if (password !== again) return setMsg("The two passwords do not match. Type the same password twice.");
+    setBusy(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    setBusy(false);
+    if (error) setMsg(`${error.message} Open the reset link from your email again and retry.`);
+    else setDone(true);
+  }
+
+  return (
+    <div className="card">
+      <p className="eyebrow">Waypoint</p>
+      <h1 className="question">Choose a new password</h1>
+      {done ? (
+        <>
+          <p className="hint">Your password has been changed and you are signed in.</p>
+          <div className="actions">
+            <button className="btn btn-primary" onClick={onDone}>Continue</button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="field">
+            <label className="visually-hidden" htmlFor="new-password">New password</label>
+            <input
+              id="new-password"
+              type="password"
+              autoComplete="new-password"
+              placeholder="New password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label className="visually-hidden" htmlFor="new-password-again">New password again</label>
+            <input
+              id="new-password-again"
+              type="password"
+              autoComplete="new-password"
+              placeholder="New password again"
+              value={again}
+              onChange={(e) => setAgain(e.target.value)}
+            />
+          </div>
+          <div aria-live="polite">{msg && <p className="note note-warn">{msg}</p>}</div>
+          <div className="actions">
+            <button className="btn btn-primary" onClick={save} disabled={busy || !password || !again}>
+              {busy ? "…" : "Save new password"}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function HistoryScreen({
+  onBack,
+  email,
+  accessToken,
+  onDeleted,
+}: {
+  onBack: () => void;
+  email: string | null;
+  accessToken: string | null;
+  onDeleted: () => void;
+}) {
   const [rows, setRows] = useState<AssessmentRow[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [picked, setPicked] = useState(0);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteErr, setDeleteErr] = useState<string | null>(null);
 
   useEffect(() => {
     getHistory().then(setRows).catch((e) => setErr(e.message ?? "Could not load history"));
@@ -207,6 +321,26 @@ function HistoryScreen({ onBack }: { onBack: () => void }) {
         )
       : [];
   const latest = views[0];
+  // The check-in the user tapped (newest by default) and the one before it, for the six-area view.
+  const at = Math.min(picked, Math.max(views.length - 1, 0));
+  const current = views[at];
+  const before = views[at + 1];
+  const areas = current ? domainChanges(current, before, PILLARS_META.map((p) => p.id)) : null;
+  const moved = areas ? areas.rows.filter((r) => r.meaningful) : [];
+  const labelOf = (id: string) => PILLARS_META.find((p) => p.id === id)?.label ?? id;
+
+  async function deleteAccount() {
+    if (!accessToken) return;
+    setDeleting(true);
+    setDeleteErr(null);
+    const res = await fetch("/api/account", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }).catch(() => null);
+    setDeleting(false);
+    if (res && res.ok) onDeleted();
+    else setDeleteErr("We could not delete your account just now. Check your connection and try again.");
+  }
 
   return (
     <div className="card">
@@ -275,22 +409,67 @@ function HistoryScreen({ onBack }: { onBack: () => void }) {
             </div>
           )}
 
-          <p className="section-label">Every check-in</p>
-          <div className="stats">
-            {views.map((v) => (
-              <div className="stat" key={v.id}>
-                <span>
-                  {v.monthLabel}
-                  {v.change && !v.change.comparable && (
-                    <span className="too-soon"> · too soon to compare</span>
-                  )}
-                </span>
-                <b className={`hist-score ${v.composite != null ? tone(v.composite) : ""}`}>
-                  {v.composite != null ? `${v.composite}/100` : "—"}
-                </b>
-              </div>
+          <p className="section-label">Every check-in · tap one to see its six areas</p>
+          <ul className="stats">
+            {views.map((v, i) => (
+              <li key={v.id}>
+                <button
+                  type="button"
+                  className="stat stat-pick"
+                  aria-pressed={i === at}
+                  onClick={() => setPicked(i)}
+                >
+                  <span>
+                    {v.monthLabel}
+                    {v.change && !v.change.comparable && (
+                      <span className="too-soon"> · too soon to compare</span>
+                    )}
+                  </span>
+                  <b className={`hist-score ${v.composite != null ? tone(v.composite) : ""}`}>
+                    {v.composite != null ? `${v.composite}/100` : "—"}
+                  </b>
+                </button>
+              </li>
             ))}
-          </div>
+          </ul>
+
+          {current && areas && (
+            <>
+              <p className="section-label">
+                Your six areas · {current.monthLabel}
+                {before ? ` · compared with ${before.shortLabel}` : ""}
+              </p>
+              <div className="stats">
+                {PILLARS_META.map((p) => {
+                  const r = areas.rows.find((x) => x.id === p.id)!;
+                  return (
+                    <div className="stat" key={p.id}>
+                      <span>{p.label}</span>
+                      <b className={`hist-score ${r.score != null ? tone(r.score) : ""}`}>
+                        {r.score ?? "—"}
+                        {r.meaningful && r.delta != null && (
+                          <span className={`area-change ${r.delta > 0 ? "up" : "down"}`}>
+                            {r.delta > 0 ? ` ▲ +${r.delta}` : ` ▼ ${r.delta}`}
+                          </span>
+                        )}
+                      </b>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="note">
+                {!before
+                  ? "This is your first check-in, so there is nothing to compare it with yet."
+                  : !areas.comparable
+                    ? "These two check-ins are less than 28 days apart, so no area is marked as changed."
+                    : moved.length === 0
+                      ? "No area changed by more than its natural variation since the check-in before."
+                      : `Changed since the check-in before: ${moved
+                          .map((m) => labelOf(m.id).toLowerCase())
+                          .join(", ")}. Smaller differences are within each questionnaire's natural variation.`}
+              </p>
+            </>
+          )}
 
           <p className="note">
             A change is only reported when enough time has passed for your score to move, and when
@@ -305,6 +484,27 @@ function HistoryScreen({ onBack }: { onBack: () => void }) {
           Back
         </button>
       </div>
+
+      <p className="section-label">Your account</p>
+      {email && <p className="hint">Signed in as {email}</p>}
+      {!confirmDelete ? (
+        <button className="linkbtn linkbtn-danger" onClick={() => setConfirmDelete(true)}>
+          Delete my account and data
+        </button>
+      ) : (
+        <div className="note note-warn" role="group" aria-label="Confirm account deletion">
+          <p>This permanently deletes your account and every saved check-in. It cannot be undone.</p>
+          <div className="actions">
+            <button className="btn btn-ghost" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+              Keep my account
+            </button>
+            <button className="btn btn-primary" onClick={deleteAccount} disabled={deleting || !accessToken}>
+              {deleting ? "Deleting…" : "Yes, delete everything"}
+            </button>
+          </div>
+          <div aria-live="polite">{deleteErr && <p>{deleteErr}</p>}</div>
+        </div>
+      )}
     </div>
   );
 }

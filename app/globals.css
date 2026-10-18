@@ -481,6 +481,11 @@ body {
   text-decoration: underline;
 }
 
+/* Destructive link (delete account): the low band colour, so it never reads as a primary action. */
+.linkbtn-danger {
+  color: var(--low);
+}
+
 /* --- Progress ----------------------------------------------------------- */
 
 .progress {
@@ -839,6 +844,9 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--r-row);
   overflow: hidden;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .stat {
@@ -849,8 +857,41 @@ body {
   font-size: 0.875rem;
 }
 
-.stat:nth-child(odd) {
+/* Zebra on the direct children, so it works for plain rows and for list items wrapping buttons. */
+.stats > :nth-child(odd) {
   background: var(--surface-low);
+}
+
+/* History rows the user can tap to see that check-in's six areas. */
+.stat-pick {
+  width: 100%;
+  min-height: var(--tap);
+  align-items: center;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stat-pick:hover {
+  background: var(--brand-soft);
+}
+
+.stat-pick[aria-pressed="true"] {
+  background: var(--brand-soft);
+  box-shadow: inset 3px 0 0 var(--brand);
+  font-weight: 600;
+}
+
+.area-change.up {
+  color: var(--good);
+}
+
+.area-change.down {
+  color: var(--mid);
 }
 
 .stat b {
