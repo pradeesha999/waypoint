@@ -1,0 +1,1840 @@
+/* =============================================================================
+   Waypoint — design system
+   =============================================================================
+
+   ONE definition per selector. This file replaced an 875-line version that had
+   27 duplicated selectors (.card, .optbtn, .gauge, .btn-primary … each defined
+   2–4 times), because fixes had been appended rather than edited. If you need to
+   change how something looks, EDIT the rule where it lives below — never append
+   an override at the bottom. That is what made the old file incoherent.
+
+   Order (never reorder; later sections assume earlier ones):
+     1. Tokens          — the only place colours, sizes and shadows are declared
+     2. Base + focus    — reset, body, global keyboard focus ring
+     3. Typography      — eyebrow, question, hint, note, section-label
+     4. Primitives      — button, card, progress, choice controls, field, gauge
+     5. Data display    — stats, calc breakdown, menu, pills, empty state
+     6. Screens         — landing, study forms, assessment flow, top bar
+     7. Motion          — animations, all gated on prefers-reduced-motion
+     8. Responsive      — the single breakpoint block
+
+   Accessibility contract (this is a research instrument with ethical clearance —
+   these are requirements, not polish):
+     - Every interactive element shows a visible :focus-visible ring.
+     - Choice controls style BOTH `.selected` and `[aria-checked="true"]`, so the
+       markup can carry proper radiogroup semantics.
+     - Hit targets are at least 44px in the smaller dimension.
+     - Every animation is inside a `prefers-reduced-motion: no-preference` guard.
+   ========================================================================== */
+
+/* Faces are self-hosted by next/font (see app/layout.tsx), which is why there is no @import here.
+   The previous version pulled Manrope from fonts.googleapis.com — an off-origin, render-blocking
+   request that a participant on 3G in a waiting room pays for before any text is readable. */
+
+/* =============================================================================
+   1. TOKENS
+   ========================================================================== */
+
+:root {
+  /* --- surfaces ---------------------------------------------------------
+     Cool off-white, not cream. The palette is built around a single clinical
+     green so the app reads calm and non-alarming to someone who did not ask to
+     be assessed. Warmth comes from the serif and the generous type, not from a
+     beige ground — cream + serif + terracotta is the current AI-default look
+     and it makes a research instrument look like a wellness brochure. */
+  --bg: #f7f8f6;
+  --bg-2: #eef2ef;
+  --card: #ffffff;
+  --surface-low: #f3f6f4;
+  --surface-high: #e8eeea;
+
+  /* --- ink — near-black with a green cast, so it sits in the same family ---
+     Values are chosen against measured contrast, not by eye: `--ink` is AAA on
+     both card and page, `--muted` clears 7:1 so secondary text is AAA too, and
+     `--faint` clears 4.5:1 — it is still real text (legend rows, captions), so
+     "tertiary" cannot mean "below the floor". */
+  --ink: #12211f;
+  --muted: #4d5a56;
+  --faint: #66736f;
+
+  /* --- accent: moss --- */
+  --brand: #1f6f5c;
+  --brand-2: #4fa88b;
+  --brand-ink: #ffffff;
+  --brand-soft: #e8f1ed;
+  --brand-line: rgba(31, 111, 92, 0.26);
+  --ring: #1f6f5c;
+
+  /* --- score bands (also the semantic status colours) ---------------------
+     `--mid` is DARKER than the amber it is drawn from (#c98a2b → #8a5b10): the
+     lighter value is 2.9:1 on white and fails AA for text. The lighter amber
+     survives as `--mid-line`, used only for borders and fills, where 3:1 is the
+     bar. Bands are colour only — the number is always on screen next to them. */
+  --good: #1a6b52;
+  --good-soft: #e0efe8;
+  --mid: #8a5b10;
+  --mid-line: #c98a2b;
+  --mid-soft: #f8eeda;
+  --low: #a3452f;
+  --low-soft: #f6e2dc;
+
+  /* --- lines ---------------------------------------------------------------
+     Two jobs, two tokens. `--border` divides things (1.3:1 is fine for a rule
+     between rows). `--border-strong` is the OUTLINE OF A CONTROL — an answer row
+     is a white box on a white card, so its border is the only thing saying "this
+     is tappable", and WCAG 1.4.11 puts that at 3:1. Use it on anything a
+     participant is meant to press or type into. */
+  --border: #dde3e0;
+  --border-strong: #828e8a;
+  --border-soft: #eaefec;
+
+  /* --- shape --- */
+  --r-card: 20px;
+  --r-row: 14px;
+  --r-ctl: 12px;
+  --r-pill: 999px;
+
+  /* --- depth — quiet. The Bloom is the one object allowed to be memorable. --- */
+  --shadow-row: 0 1px 2px rgba(18, 33, 31, 0.04);
+  --shadow-soft: 0 4px 24px rgba(18, 33, 31, 0.06);
+  --shadow-lift: 0 10px 34px rgba(18, 33, 31, 0.1);
+  --shadow-brand: 0 2px 8px rgba(31, 111, 92, 0.22);
+
+  /* --- spacing scale — use these, don't invent new numbers --- */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+
+  /* --- type ---------------------------------------------------------------
+     Body base is 17px, not 14. The audience is 18-70+ with mixed literacy,
+     often reading standing up on a three-year-old phone. */
+  --font-body: "Public Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Newsreader", Georgia, "Times New Roman", serif;
+  --text-base: 17px;
+  --lh-body: 1.6;
+
+  /* --- motion ---
+     `--t-reveal` is the one long duration in the app: the Bloom petal fill. It
+     is the reward moment and the only place the animation budget is spent. */
+  --t-fast: 0.12s ease;
+  --t-base: 0.16s ease;
+  --t-reveal: 700ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* --- layout ---
+     `--tap` is the floor for any control; `--tap-row` is the taller floor for a
+     one-thumb answer row, which is tapped ~50 times per session. */
+  --page: 1040px;
+  --shell: 900px;
+  --tap: 44px;
+  --tap-row: 58px;
+
+  color-scheme: light;
+}
+
+/* Dark mode. Same design, inverted surfaces: warm charcoal instead of warm
+   paper, and the accent lightens so it keeps contrast against a dark ground.
+   Only tokens are redefined here — no component rules live in this block. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131c1a;
+    --bg-2: #0e1615;
+    --card: #1a2523;
+    --surface-low: #1f2b28;
+    --surface-high: #26332f;
+
+    --ink: #e9efec;
+    --muted: #a3b3ae;
+    --faint: #8b9a95;
+
+    --brand: #6ec4a8;
+    --brand-2: #97d9c2;
+    --brand-ink: #06231d;
+    --brand-soft: rgba(110, 196, 168, 0.14);
+    --brand-line: rgba(110, 196, 168, 0.34);
+    --ring: #6ec4a8;
+
+    --good: #71c9a5;
+    --good-soft: rgba(113, 201, 165, 0.15);
+    --mid: #e0a94a;
+    --mid-line: #e0a94a;
+    --mid-soft: rgba(224, 169, 74, 0.15);
+    --low: #e58c72;
+    --low-soft: rgba(229, 140, 114, 0.15);
+
+    --border: #2c3a36;
+    --border-strong: #6a7975;
+    --border-soft: #24312e;
+
+    --shadow-row: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-soft: 0 4px 24px rgba(0, 0, 0, 0.42);
+    --shadow-lift: 0 10px 34px rgba(0, 0, 0, 0.5);
+    --shadow-brand: 0 2px 8px rgba(0, 0, 0, 0.4);
+
+    color-scheme: dark;
+  }
+}
+
+/* =============================================================================
+   2. BASE + FOCUS
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  /* The root carries the base size so every `rem` below scales with it — set it
+     on `body` alone and `rem` would still be measuring the UA's 16px. */
+  font-size: var(--text-base);
+  /* Kills the ~300ms double-tap-to-zoom wait on every answer. Over ~50 taps per
+     session that is most of a minute of dead time. */
+  touch-action: manipulation;
+  /* Set deliberately rather than left to the UA's translucent blue-grey flash,
+     which reads as a rendering fault on the tinted answer rows. */
+  -webkit-tap-highlight-color: rgba(31, 111, 92, 0.12);
+}
+
+body {
+  min-height: 100dvh;
+  /* Flat. No mesh gradient, no glow — the Bloom is the only object in the app
+     allowed to draw attention, and a tinted ground behind it fights it. */
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Keyboard and screen-reader users get past the top bar without tabbing it every
+   screen. Visible the moment it takes focus, hidden otherwise. */
+.skiplink {
+  position: absolute;
+  left: var(--s3);
+  top: var(--s3);
+  z-index: 100;
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-ctl);
+  background: var(--brand);
+  color: var(--brand-ink);
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.skiplink:focus-visible {
+  transform: none;
+}
+
+/* One focus ring for the whole app. The old stylesheet had none at all, which
+   made every screen unusable by keyboard. `:focus-visible` means mouse users
+   never see it, so there is no cost to keeping it bold enough to actually find. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: var(--r-ctl);
+}
+
+/* Anything clickable that isn't a real control still needs a pointer + ring. */
+[role="button"] {
+  cursor: pointer;
+}
+
+/* For a label that a sighted user does not need because the field is obvious in
+   context, but a screen-reader user does. NOT `display: none` — that removes it
+   from the accessibility tree too, which defeats the point. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+::selection {
+  background: var(--brand-soft);
+  color: var(--ink);
+}
+
+/* Layout wrapper for every single-card screen. */
+.screen {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s5) var(--s4);
+}
+
+.card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-soft);
+  padding: var(--s5);
+  /* Long option labels and pasted-looking words must wrap rather than push the
+     page sideways; nothing in this app may scroll horizontally at 320px. */
+  overflow-wrap: break-word;
+}
+
+/* The results screen only: there is nothing left to answer, so on a wide screen the
+   score and its breakdown sit side by side instead of in one narrow column. */
+.card-wide {
+  max-width: var(--shell);
+}
+
+/* =============================================================================
+   3. TYPOGRAPHY
+   ========================================================================== */
+
+.eyebrow {
+  margin: 0 0 var(--s3);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+
+/* The question is the screen. At 24px it is readable at arm's length, standing
+   up, on a phone held one-handed — which is the actual completion posture. The
+   serif is doing the work the brief asks of it: warm, and serious without
+   reading governmental. */
+.question {
+  margin: 0 0 var(--s2);
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 1.25rem + 0.7vw, 1.55rem);
+  line-height: 1.3;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.hint {
+  margin: var(--s2) 0 var(--s5);
+  font-size: 0.94rem;
+  line-height: var(--lh-body);
+  color: var(--muted);
+}
+
+.section-label {
+  margin: var(--s5) 0 var(--s3);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.note {
+  margin: var(--s4) 0 0;
+  font-size: 0.85rem;
+  line-height: var(--lh-body);
+  color: var(--muted);
+}
+
+/* Safeguarding messages (high stress, hazardous drinking). Deliberately louder
+   than .note — a participant must not skim past one. Border uses `--mid-line`
+   (the lighter amber, ≥3:1 as a boundary); the text stays `--ink`, so nothing
+   here depends on the amber being readable. */
+.note-warn {
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--mid-line);
+  border-left-width: 4px;
+  border-radius: var(--r-ctl);
+  background: var(--mid-soft);
+  color: var(--ink);
+}
+
+.band {
+  margin: var(--s1) 0 var(--s5);
+  text-align: center;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.result-head {
+  margin-bottom: var(--s5);
+  text-align: center;
+}
+
+/* The one big number: a domain score on its reveal, or the composite at the end.
+   76px, serif, tabular so the count-up doesn't jitter the layout. */
+.score-display {
+  margin: var(--s3) 0 var(--s1);
+  font-family: var(--font-display);
+  font-size: clamp(3.4rem, 2.6rem + 3.4vw, 4.4rem);
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--good);
+}
+
+.score-display.mid {
+  color: var(--mid);
+}
+
+.score-display.low {
+  color: var(--low);
+}
+
+.score-of {
+  margin: 0 0 var(--s5);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* =============================================================================
+   4. PRIMITIVES
+   ========================================================================== */
+
+/* --- Buttons ------------------------------------------------------------ */
+
+.actions {
+  display: flex;
+  gap: var(--s3);
+  margin-top: var(--s6);
+}
+
+.btn {
+  appearance: none;
+  min-height: 52px;
+  padding: 14px 22px;
+  border: 1.5px solid transparent;
+  border-radius: var(--r-ctl);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  /* Named properties, never `all` — `transition: all` also animates layout
+     properties the moment one changes, which is how a 700ms reflow appears. */
+  transition: background var(--t-base), border-color var(--t-base),
+    box-shadow var(--t-fast), opacity var(--t-fast);
+}
+
+/* Flat fill, no gradient. The brief's rule and the right one: a gradient on the
+   primary button competes with the Bloom, which is the only place colour is
+   carrying information. */
+.btn-primary {
+  flex: 1;
+  background: var(--brand);
+  color: var(--brand-ink);
+  box-shadow: var(--shadow-brand);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--brand) 86%, var(--ink));
+}
+
+.btn-primary:active:not(:disabled) {
+  background: color-mix(in srgb, var(--brand) 78%, var(--ink));
+}
+
+.btn-primary:disabled {
+  background: var(--surface-high);
+  color: var(--faint);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--muted);
+  border-color: var(--border-strong);
+}
+
+.btn-ghost:hover {
+  border-color: var(--ring);
+  color: var(--ink);
+}
+
+.linkbtn {
+  display: block;
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--s2) 0;
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--brand);
+  font: inherit;
+  font-size: 0.94rem;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+}
+
+.linkbtn:hover {
+  text-decoration: underline;
+}
+
+/* --- Progress ----------------------------------------------------------- */
+
+.progress {
+  height: 6px;
+  width: 100%;
+  margin-bottom: var(--s5);
+  background: var(--brand-soft);
+  border-radius: var(--r-pill);
+  overflow: hidden;
+}
+
+/* The bar is the participant's only signal that effort is accumulating, so it
+   moves — but it is a `transform` on a full-width fill, not an animated `width`,
+   which would relayout on every answer. */
+.progress > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--brand);
+  transform-origin: left center;
+  transition: transform 260ms ease;
+}
+
+/* --- Choice controls ----------------------------------------------------
+   Three shapes, one behaviour. Each styles `.selected` (current markup) AND
+   `[aria-checked="true"]` (proper radiogroup markup), so the components can be
+   given real semantics without the styling falling over. */
+
+.optlist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.optbtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  width: 100%;
+  /* 58px, not 44px. This row is tapped ~50 times per session, one-handed, often
+     by someone standing — the generic minimum is the wrong floor for the single
+     most-used control in the app. */
+  min-height: var(--tap-row);
+  padding: var(--s4) 18px;
+  appearance: none;
+  text-align: left;
+  background: var(--card);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--r-ctl);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background var(--t-base), border-color var(--t-base), transform var(--t-fast);
+}
+
+.optbtn:hover {
+  border-color: var(--ring);
+  background: var(--surface-low);
+}
+
+.optbtn:active {
+  transform: scale(0.985);
+}
+
+.optbtn.selected,
+.optbtn[aria-checked="true"] {
+  background: var(--brand-soft);
+  border-color: var(--brand-line);
+  color: var(--brand);
+  font-weight: 600;
+}
+
+/* Checkmark on the chosen row. Drawn in CSS so it inherits the accent token and
+   works in both themes; `content: ""` keeps it out of the accessibility tree,
+   where aria-checked is what actually conveys the state. */
+.optbtn.selected::after,
+.optbtn[aria-checked="true"]::after {
+  content: "";
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-pill);
+  background: var(--brand);
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'><path d='M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/></svg>") center / 15px no-repeat;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'><path d='M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/></svg>") center / 15px no-repeat;
+}
+
+/* The raw instrument value (0–4 etc.) is scoring scaffolding. It must not be
+   visible to a participant — seeing "3" next to an answer invites them to
+   optimise the number instead of answering honestly. */
+.optval {
+  display: none;
+}
+
+.daygrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--s2);
+}
+
+.daybtn {
+  appearance: none;
+  min-height: var(--tap-row);
+  padding: 14px 0;
+  background: var(--card);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--r-row);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.125rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--t-base), border-color var(--t-base), color var(--t-base);
+}
+
+.daybtn:hover {
+  border-color: var(--ring);
+}
+
+.daybtn.selected,
+.daybtn[aria-checked="true"] {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-bottom: var(--s4);
+}
+
+.chip {
+  appearance: none;
+  min-height: var(--tap);
+  padding: 10px 16px;
+  background: var(--card);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--r-pill);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--t-base), border-color var(--t-base), color var(--t-base);
+}
+
+.chip:hover {
+  border-color: var(--ring);
+}
+
+.chip.selected,
+.chip[aria-checked="true"] {
+  background: var(--brand-soft);
+  border-color: var(--brand-line);
+  color: var(--brand);
+}
+
+/* --- Numeric field ------------------------------------------------------ */
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-bottom: var(--s2);
+}
+
+/* Never below 16px: iOS Safari zooms the whole page in on focus for anything
+   smaller, and the participant then has to pinch back out to reach the next
+   control. `font: inherit` already gets us there, but the size is stated so a
+   later "make it smaller" edit trips over the reason. */
+.field input {
+  width: 100%;
+  min-height: var(--tap-row);
+  padding: var(--s4);
+  background: var(--card);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--r-ctl);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.06rem;
+}
+
+/* Tints the border on any focus, mouse included. It must NOT set `outline: none`
+   — it used to, and because `.field input:focus` outranks the `:where(…)` global
+   rule in section 2, that silently replaced the 3px keyboard ring with a
+   near-white shadow on a white card. The global :focus-visible outline now
+   survives and this only adds to it. */
+.field input:focus {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+
+.unit {
+  flex: 0 0 auto;
+  font-size: 0.9375rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.device-box {
+  margin-top: var(--s3);
+  padding: var(--s3);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-ctl);
+}
+
+/* --- Gauge --------------------------------------------------------------
+   A conic-gradient ring driven by the `--val` custom property (0–100), set
+   inline by the component. Colour follows the score band so a low score reads
+   as "needs attention" before the number is even read. */
+
+.gauge {
+  --val: 0;
+  --gauge-color: var(--good);
+  width: 168px;
+  height: 168px;
+  margin: 0 auto var(--s4);
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: conic-gradient(var(--gauge-color) calc(var(--val) * 1%), var(--brand-soft) 0);
+}
+
+.gauge.mid {
+  --gauge-color: var(--mid);
+}
+
+.gauge.low {
+  --gauge-color: var(--low);
+}
+
+.gauge.small {
+  width: 128px;
+  height: 128px;
+}
+
+.gauge-inner {
+  width: 78%;
+  height: 78%;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--card);
+}
+
+.gauge-score {
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 2rem + 1.4vw, 2.9rem);
+  font-weight: 500;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.gauge-of {
+  margin-top: var(--s1);
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* --- Bloom --------------------------------------------------------------
+   The signature element (components/Bloom.tsx). Six wedges, one per pillar,
+   filling outward in proportion to that pillar's score. Flat fills, no
+   gradients, no glow — the shape is doing the work, and everything around it is
+   kept quiet so it can. */
+
+.bloom {
+  display: block;
+  margin: 0 auto;
+  max-width: 100%;
+  height: auto;
+}
+
+.bloom-track {
+  fill: var(--brand-soft);
+  stroke: var(--card);
+  stroke-width: 2.5;
+}
+
+.bloom-hub {
+  fill: var(--card);
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.bloom-value {
+  fill: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.bloom-count {
+  fill: var(--muted);
+  font-family: var(--font-body);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+/* The Bloom's text equivalent. Roughly 8% of male participants have a colour
+   vision deficiency, so no score may exist only as a colour — every wedge also
+   appears here as a name and a number. */
+.bloom-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s1) var(--s4);
+  margin: var(--s5) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bloom-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+  padding: var(--s1) 0;
+  font-size: 0.85rem;
+}
+
+.bloom-legend-item.pending {
+  color: var(--faint);
+}
+
+.bloom-swatch {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.bloom-legend-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bloom-legend-score {
+  flex: 0 0 auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* =============================================================================
+   5. DATA DISPLAY
+   ========================================================================== */
+
+.stats {
+  border: 1px solid var(--border);
+  border-radius: var(--r-row);
+  overflow: hidden;
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  font-size: 0.875rem;
+}
+
+.stat:nth-child(odd) {
+  background: var(--surface-low);
+}
+
+.stat b {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.hist-score.mid {
+  color: var(--mid);
+}
+
+.hist-score.low {
+  color: var(--low);
+}
+
+.too-soon {
+  color: var(--faint);
+  font-size: 0.82em;
+}
+
+/* --- Score derivation ("how this was calculated") ----------------------- */
+
+.calc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.calc-row {
+  padding: var(--s3) var(--s4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-row);
+}
+
+.calc-row.calc-total {
+  background: var(--brand-soft);
+  border-color: var(--brand-line);
+}
+
+.calc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s3);
+}
+
+.calc-name {
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.calc-out {
+  font-size: 1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.calc-math {
+  margin-top: var(--s1);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--ink);
+  overflow-x: auto;
+}
+
+.calc-sub {
+  margin-top: var(--s1);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* --- Pillar menu -------------------------------------------------------- */
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin-top: var(--s2);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--s3) var(--s4);
+  appearance: none;
+  text-align: left;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: border-color var(--t-base), transform var(--t-base), box-shadow var(--t-base);
+}
+
+.menu-item:hover:not(.disabled) {
+  border-color: var(--ring);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-soft);
+}
+
+.menu-item.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.menu-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.menu-n {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+
+.menu-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.menu-desc {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.menu-badge {
+  flex: 0 0 auto;
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.menu-badge.ready {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-ink);
+}
+
+/* --- Change pill, retake prompt, empty state ---------------------------- */
+
+.change-pill {
+  display: inline-block;
+  margin: var(--s3) 0 0;
+  padding: 5px 13px;
+  border-radius: var(--r-pill);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.change-pill.up {
+  background: var(--good-soft);
+  color: var(--good);
+}
+
+.change-pill.down {
+  background: var(--mid-soft);
+  color: var(--mid);
+}
+
+.change-pill.flat {
+  background: var(--surface-high);
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.retake-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  margin: var(--s5) 0 var(--s1);
+  padding: var(--s4) var(--s5);
+  border-radius: var(--r-row);
+  background: var(--brand-soft);
+}
+
+.retake-title {
+  margin: 0;
+  font-weight: 700;
+  color: var(--brand);
+}
+
+.retake-card .btn {
+  margin-top: var(--s2);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s5) 0 var(--s2);
+  text-align: center;
+}
+
+.empty-gauge {
+  width: 108px;
+  height: 108px;
+  border-radius: 50%;
+  border: 6px dashed var(--border);
+  opacity: 0.75;
+}
+
+.empty-title {
+  margin: var(--s2) 0 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+/* =============================================================================
+   6. SCREENS
+   ========================================================================== */
+
+/* Final results: one column on a phone, two from the breakpoint in section 8. */
+.result-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s5);
+}
+
+/* Study mode: the step to the usability questions stays pinned to the bottom of the screen while
+   the results scroll, because on a phone the results run well past the fold. */
+.study-next {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin: var(--s5) calc(-1 * var(--s3)) 0;
+  padding: var(--s3) var(--s3) calc(var(--s3) + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--border);
+  border-radius: var(--r-row);
+  background: var(--card);
+  box-shadow: var(--shadow-lift);
+}
+
+.study-next-text {
+  flex: 1 1 16rem;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.study-next .btn {
+  flex: 1 1 10rem;
+}
+
+/* --- Top bar ------------------------------------------------------------ */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s3) max(var(--s5), calc((100% - var(--page)) / 2));
+  background: color-mix(in srgb, var(--card) 78%, transparent);
+  backdrop-filter: saturate(1.4) blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--brand);
+  cursor: pointer;
+}
+
+.greeting {
+  margin-left: var(--s3);
+  font-size: 0.82rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+}
+
+/* Inside the bar the link button is inline, not a full-width block. */
+.topbar-link {
+  width: auto;
+  min-height: auto;
+  padding: var(--s2) 0;
+}
+
+/* --- Landing ------------------------------------------------------------ */
+
+.landing {
+  max-width: var(--page);
+  margin: 0 auto;
+  padding: var(--s5) var(--s5) 64px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  align-items: center;
+  gap: var(--s7);
+  padding: var(--s7) 0 var(--s6);
+}
+
+/* Flat ink. The old gradient-clipped heading was the AI-default tell, and it
+   also drops to `color: transparent` in any browser that fails the clip — a
+   heading that can vanish is not a heading. */
+.hero-title {
+  margin: var(--s1) 0 var(--s4);
+  font-family: var(--font-display);
+  font-size: clamp(2.1rem, 1.5rem + 2.6vw, 2.9rem);
+  line-height: 1.12;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+  color: var(--ink);
+}
+
+/* "Waypoint" doesn't explain itself, so it earns exactly one line. */
+.hero-tagline {
+  margin: calc(var(--s1) * -1.5) 0 var(--s4);
+  font-size: 1rem;
+  line-height: var(--lh-body);
+  color: var(--muted);
+}
+
+.hero-sub {
+  max-width: 34em;
+  margin: 0 0 var(--s6);
+  font-size: clamp(1rem, 0.95rem + 0.25vw, 1.1rem);
+  line-height: var(--lh-body);
+  color: var(--muted);
+}
+
+.hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+.hero-btn {
+  flex: 0 0 auto;
+  padding: 15px 28px;
+}
+
+.hero-note {
+  margin-top: var(--s4);
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* The Bloom, pre-filled, as a preview of the thing you are being offered. It is
+   the same component the participant meets on every reveal screen, so the
+   landing page is showing the actual product rather than an illustration. */
+.hero-bloom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.hero-bloom-caption {
+  margin: 0;
+  font-size: 0.8rem;
+  text-align: center;
+  color: var(--faint);
+  text-wrap: balance;
+}
+
+.pillar-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s3);
+  margin: var(--s5) 0 var(--s6);
+}
+
+/* Not interactive — these are a description of what is coming, not a menu. The
+   old hover lift promised a click that never existed. */
+.pillar-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+  padding: var(--s4) var(--s5);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-ctl);
+}
+
+/* Holds a line icon (not an emoji), so it can take the brand colour. */
+.pillar-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: var(--s1);
+  border-radius: var(--r-ctl);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.pillar-name {
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.pillar-line {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s5);
+  margin: var(--s2) 0 var(--s6);
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+}
+
+.step-n {
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+.step-t {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.landing-cta {
+  display: flex;
+  justify-content: center;
+}
+
+/* --- Consent + control form (study arms) -------------------------------- */
+
+/* The plain-language layer. Bulleted, bolded lead-ins, one idea per line — a
+   participant skimming in a waiting room gets the five things that matter
+   without reading a page of prose to find them. */
+.consent-summary {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  font-size: 0.94rem;
+  line-height: var(--lh-body);
+  color: var(--muted);
+}
+
+.consent-summary strong {
+  color: var(--ink);
+}
+
+.consent-box {
+  margin: var(--s5) 0 var(--s2);
+  padding: var(--s2) var(--s4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-ctl);
+  background: var(--surface-low);
+}
+
+/* The label wraps the control, so the whole row is one hit target — there is no
+   dead zone between a tick box and the words it belongs to. */
+.consent-line {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s3);
+  min-height: var(--tap);
+  padding: var(--s3) 0;
+  font-size: 0.94rem;
+  line-height: 1.5;
+  cursor: pointer;
+}
+
+.consent-line + .consent-line {
+  border-top: 1px solid var(--border-soft);
+}
+
+.consent-line input {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin-top: 1px;
+  accent-color: var(--brand);
+}
+
+/* Required vs optional must be distinguishable without reading the small print,
+   and an optional item must not look like a hurdle. */
+.consent-tag {
+  margin-left: var(--s2);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.consent-tag.required {
+  color: var(--low);
+}
+
+.consent-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* Layered disclosure. The plain-language summary is what a participant meets
+   first; the full ethics-approved sheet is one tap away on the same screen and
+   is not shortened, reworded, or moved off the page. Nothing about what is
+   disclosed changes — only whether 1,200 words are the first thing seen. */
+.disclosure {
+  margin: var(--s4) 0 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-ctl);
+  background: var(--card);
+}
+
+.disclosure > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-height: var(--tap);
+  padding: var(--s3) var(--s4);
+  color: var(--brand);
+  font-size: 0.94rem;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure > summary::after {
+  content: "＋";
+  margin-left: auto;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.disclosure[open] > summary::after {
+  content: "−";
+}
+
+.disclosure-body {
+  padding: 0 var(--s4) var(--s4);
+  border-top: 1px solid var(--border-soft);
+}
+
+/* The control arm is a deliberately traditional single-page form — it is the
+   comparison condition for RQ2, so it stays plain on purpose. It still has to
+   be readable and accessible; "traditional" is not the same as "bad". */
+.form-card {
+  max-width: 720px;
+}
+
+.form-section {
+  margin: var(--s6) 0 var(--s1);
+  padding-bottom: var(--s2);
+  border-bottom: 2px solid var(--brand-soft);
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+.form-row {
+  margin: var(--s4) 0;
+}
+
+.form-label {
+  margin: 0 0 var(--s2);
+  font-size: 0.97rem;
+  line-height: 1.45;
+}
+
+.form-hint {
+  margin: calc(var(--s1) * -1) 0 var(--s2);
+  font-size: 0.86rem;
+  color: var(--muted);
+}
+
+.form-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s1);
+}
+
+.form-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s1) 0;
+  font-size: 0.9375rem;
+  cursor: pointer;
+}
+
+.form-opt input {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--brand);
+}
+
+.form-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+/* 1rem, not 0.9375rem: below 16px iOS Safari zooms the page in on focus, and the
+   control arm is a long single page — being zoomed into row 30 of 48 is worse
+   here than anywhere else in the app. */
+.form-inline input {
+  width: 110px;
+  min-height: var(--tap);
+  padding: 10px 12px;
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-ctl);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.form-unit {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/* --- Assessment flow (chapters, transitions) ---------------------------- */
+
+.flow-progress {
+  margin-bottom: var(--s4);
+}
+
+.flow-progress .progress {
+  margin-bottom: 0;
+}
+
+.flow-progress-label {
+  margin: var(--s2) 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.chapter-tag {
+  margin: 0 0 var(--s3);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+
+.chapter-pos {
+  font-weight: 500;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Chapter-mode variants.
+   In chapter mode the parent card already renders "DOMAIN · n of N" and the
+   progress bar, so a questionnaire's own eyebrow would be a second competing
+   label. Hiding it is a legitimate presentational variant.
+
+   The Next button is different: it is hidden only where tapping an option
+   already advances, which is true for option lists and day grids but NOT for
+   minute chips or numeric fields (there, picking a value doesn't mean "done").
+   `:has()` is used rather than the old `~` sibling chains because it keeps the
+   rule tied to the step container instead of to source order. */
+.chapter-body > div > .eyebrow {
+  display: none;
+}
+
+.chapter-body > div:has(> .optlist) > .actions .btn-primary,
+.chapter-body > div:has(> .daygrid) > .actions .btn-primary {
+  display: none;
+}
+
+.chapter-body > div:has(> .optlist) > .actions,
+.chapter-body > div:has(> .daygrid) > .actions {
+  justify-content: flex-start;
+  margin-top: var(--s4);
+}
+
+/* Back stays reachable on every item, but it is not competing with the answers.
+   As a bordered button it read as a seventh option on a six-option question;
+   as a quiet link it is findable without being a candidate answer. */
+.chapter-body > div > .actions .btn-ghost {
+  flex: 0 0 auto;
+  padding-left: 0;
+  padding-right: var(--s4);
+  border-color: transparent;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* The reveal. This is the payoff screen: the participant has just finished a
+   domain and gets their score before being asked for anything else. It is NOT a
+   whole-card button any more — the card used to carry role="button" with a click
+   handler and no key handler, which meant a keyboard or screen-reader user could
+   focus it and then not operate it. The real button below does the job. */
+.chapter-transition {
+  text-align: center;
+}
+
+.chapter-transition .bloom {
+  margin: var(--s5) auto var(--s3);
+}
+
+.running-total {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s1);
+  margin-bottom: var(--s4);
+  padding: var(--s4);
+  border-radius: var(--r-ctl);
+  background: var(--brand-soft);
+}
+
+.running-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.running-value {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s2);
+}
+
+.running-prev {
+  font-size: 1rem;
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.running-now {
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+
+.running-arrow {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--good);
+}
+
+.running-note {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.next-up {
+  margin: var(--s1) 0 0;
+  font-size: 0.94rem;
+  line-height: var(--lh-body);
+}
+
+.next-time {
+  color: var(--muted);
+}
+
+/* Every reveal offers a clean way out. Leaving is a first-class state, not a
+   failure: answers are already saved, and a participant who can stop at four
+   minutes and return later is one who finishes at all. */
+.leave-link {
+  margin-top: var(--s3);
+}
+
+/* =============================================================================
+   7. MOTION
+   All animation lives here, all of it behind the reduced-motion guard. Nothing
+   in this section may carry information that isn't also conveyed statically.
+   ========================================================================== */
+
+/* Four moments, in priority order. Motion here has one job — make a long task
+   feel short and make progress feel earned. Nothing loops, nothing is triggered
+   by scrolling, nothing animates a layout property, and none of it carries
+   information that is not also on screen statically.
+
+     1. Petal fill      the reward. The animation budget is spent here.
+     2. Question change  keeps ~50 items reading as one sequence, not 50 loads.
+     3. Progress advance the only signal that effort is accumulating (in §4).
+     4. Score entrance   one beat, then still.
+
+   Under `prefers-reduced-motion: reduce` all four collapse to instant — the
+   petal still fills, it just arrives already filled. */
+
+@media (prefers-reduced-motion: no-preference) {
+  /* 1. Petal fill — 700ms, the one long duration in the app. Transforming the
+     clip geometry, never the path `d`: `d` is not compositor-friendly and does
+     not interpolate at all in several browsers.
+     A keyframe rather than a transition, because a transition needs the element
+     to be painted at a start value and then changed — which means a second
+     render, and the first attempt at that silently never fired. The animation
+     runs on its own from the moment the petal mounts. */
+  .bloom-grow {
+    animation: petal-fill var(--t-reveal) both;
+  }
+
+  /* 2. Question transition — a 160ms fade-and-lift as one item replaces the
+     next. Anything longer and the animation, not the participant, is setting
+     the pace. */
+  .optlist,
+  .daygrid,
+  .chips,
+  .question {
+    animation: fade-up 160ms ease-out both;
+  }
+
+  /* 4. Score entrance — scale from 0.94, staggered behind the label so the two
+     do not arrive on the same frame. */
+  .chapter-transition,
+  .result-head {
+    animation: fade-up 200ms ease-out;
+  }
+
+  .score-display,
+  .result-head .gauge {
+    animation: score-in 200ms ease-out 80ms both;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The petal grows from the inner radius (`--k0`) out to its score (`--k`). Both
+   are set inline by the component; the keyframe only interpolates between them. */
+@keyframes petal-fill {
+  from {
+    transform: scale(var(--k0));
+  }
+  to {
+    transform: scale(var(--k));
+  }
+}
+
+@keyframes score-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* =============================================================================
+   8. RESPONSIVE
+   One breakpoint. Everything above is written mobile-safe first; this block
+   only rearranges the wide multi-column screens.
+   ========================================================================== */
+
+@media (min-width: 640px) {
+  /* The control form can put radio options on one line once there's room. */
+  .form-options {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--s2) var(--s5);
+  }
+
+  .result-layout {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: var(--s6);
+  }
+}
+
+@media (max-width: 760px) {
+  .card {
+    padding: var(--s5) var(--s4);
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+    gap: var(--s5);
+    padding: var(--s5) 0;
+  }
+
+  /* The Bloom goes first on mobile — it explains the product faster than the
+     copy does, and it is the thing the participant will see on every screen. */
+  .hero-bloom {
+    order: -1;
+  }
+
+  .hero-btn {
+    flex: 1;
+  }
+
+  .pillar-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .steps {
+    grid-template-columns: 1fr;
+    gap: var(--s3);
+  }
+}
+
+@media (max-width: 560px) {
+  .greeting {
+    display: none;
+  }
+
+  .daygrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+/* 320px — the narrowest phone still in real use, and the width the study cannot
+   choose to exclude. Two-column anything stops fitting here. */
+@media (max-width: 380px) {
+  .card {
+    padding: var(--s4) var(--s3);
+  }
+
+  .landing {
+    padding: var(--s4) var(--s4) var(--s7);
+  }
+
+  .pillar-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bloom-legend {
+    grid-template-columns: 1fr;
+  }
+
+  .actions {
+    flex-direction: column-reverse;
+  }
+}

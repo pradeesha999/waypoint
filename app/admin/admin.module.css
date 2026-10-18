@@ -1,0 +1,300 @@
+/* Researcher dashboard only. Kept out of globals.css so the participant-facing stylesheet stays
+   untouched. Text uses the app's ink tokens; the two study versions use a categorical pair
+   validated for colour-vision deficiency and contrast in both themes (blue = Waypoint, orange = form). */
+
+.root {
+  --c-app: #2a78d6;
+  --c-form: #eb6834;
+  --c-neutral: #b9c2bf;
+  --grid: #e6e9e7;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--s5) var(--s4) var(--s7);
+  color: var(--ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  .root {
+    --c-app: #3987e5;
+    --c-form: #d95926;
+    --c-neutral: #4d5a56;
+    --grid: #2a3633;
+  }
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.banner {
+  margin: 0 0 var(--s5);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-row);
+  background: var(--surface-low);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--s4);
+}
+
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  padding: var(--s4) var(--s5);
+  min-width: 0;
+}
+
+.wide {
+  grid-column: 1 / -1;
+}
+
+.panel h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.sub {
+  margin: var(--s1) 0 var(--s4);
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+
+.tile {
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-row);
+  background: var(--surface-low);
+}
+
+.tileLabel {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.tileValue {
+  display: block;
+  margin-top: var(--s1);
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tileNote {
+  display: block;
+  color: var(--faint);
+  font-size: 0.75rem;
+}
+
+.progress {
+  margin: var(--s3) 0;
+}
+
+.progressHead {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+
+.progressHead b {
+  font-variant-numeric: tabular-nums;
+}
+
+.track {
+  position: relative;
+  height: 10px;
+  margin-top: var(--s1);
+  border-radius: 5px;
+  background: var(--surface-high);
+}
+
+.fill {
+  height: 100%;
+  border-radius: 5px;
+}
+
+.minTick {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 16px;
+  background: var(--ink);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s4);
+  margin-bottom: var(--s2);
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: var(--s1);
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart text {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+.chart .valueText {
+  fill: var(--ink);
+  font-weight: 700;
+}
+
+.gridLine {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+
+.refLine {
+  stroke: var(--ink);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+.empty {
+  padding: var(--s5) 0;
+  color: var(--faint);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.table th,
+.table td {
+  padding: var(--s2) var(--s2);
+  border-bottom: 1px solid var(--border-soft);
+  text-align: right;
+}
+
+.table th:first-child,
+.table td:first-child {
+  text-align: left;
+}
+
+.table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.login {
+  max-width: 420px;
+  margin: 10vh auto 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  align-items: center;
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.code {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.chip {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: var(--r-pill);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chipDone {
+  background: var(--good-soft);
+  color: var(--good);
+}
+
+.chipWait {
+  background: var(--mid-soft);
+  color: var(--mid);
+}
+
+.chipIdle {
+  background: var(--surface-high);
+  color: var(--muted);
+}
+
+.leftTable th,
+.leftTable td {
+  text-align: left;
+}
+
+.num,
+.leftTable .num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.areaTable {
+  margin-top: var(--s2);
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.areaTable th,
+.areaTable td {
+  padding: 2px var(--s2);
+  border-bottom: 1px solid var(--border-soft);
+  text-align: left;
+}
+
+.areaTable th {
+  color: var(--muted);
+  font-weight: 600;
+}
