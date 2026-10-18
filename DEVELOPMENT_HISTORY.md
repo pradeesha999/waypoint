@@ -1,8 +1,8 @@
 # Development history
 
 Waypoint was developed locally and deployed to Vercel directly from the command line (Vercel CLI) from
-August 2026. Version control with Git was added on 20 October 2026, so this repository starts with a single
-commit of the current code. The timeline below is taken from the project's dated design-decision log and the
+August 2026. Version control with Git was added in October 2026 (see the date of the first commit), so this
+repository starts with a single commit of the current code. The timeline below is taken from the project's dated design-decision log and the
 Vercel deployment history, which records every production deployment with its date.
 
 | Date | Milestone |
@@ -18,7 +18,7 @@ Vercel deployment history, which records every production deployment with its da
 | 10 Oct 2026 | Web form follows each questionnaire's skip rules; device id for 7-day retest pairing; score screen continue bar |
 | 11 Oct 2026 | Doctor's domain ratings on a 0-10 scale; single-use clinic codes |
 | 14 Oct 2026 | Researcher dashboard with live analysis; one shared definition of careless answering |
-| 20 Oct 2026 | Smallest reported change between check-ins set to 10 points from the test-retest result |
+| Oct 2026 | Smallest reported change between check-ins set to 10 points from the test-retest result |
 
 Earlier deployments can be inspected in the Vercel project (`waypoint`), which keeps each deployment and its
 date.
