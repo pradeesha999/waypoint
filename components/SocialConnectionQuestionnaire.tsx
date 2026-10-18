@@ -12,6 +12,7 @@ import { usePillarTelemetry } from "@/lib/usePillarTelemetry";
 import { clearDraft, usePersistentState } from "@/lib/usePersistentState";
 import { advanceDelay } from "@/lib/flow";
 import ChapterHandoff from "@/components/ChapterHandoff";
+import { ConcernId } from "@/lib/concerns";
 import ChoiceGroup, { indexOptions } from "@/components/ChoiceGroup";
 
 type StepKind = "intro" | "item" | "result";
@@ -34,7 +35,7 @@ export default function SocialConnectionQuestionnaire({
   onProgress,
 }: {
   onExit?: () => void;
-  onComplete?: (score: number) => void;
+  onComplete?: (score: number, concerns?: ConcernId[]) => void;
   // Reports position within this chapter so the parent can show continuous progress.
   onProgress?: (answered: number, total: number) => void;
   // Chapter mode (unified flow): skip this pillar's own intro and result screens.
@@ -110,7 +111,7 @@ export default function SocialConnectionQuestionnaire({
             score={computeSocial(answers).score}
             onDone={(score) => {
               tel.complete(score);
-              onComplete?.(score);
+              onComplete?.(score, computeSocial(answers).isolated ? ["isolation"] : []);
             }}
           />
         ) : (
@@ -197,7 +198,7 @@ function Result({
   onBack: () => void;
   onRestart: () => void;
   onExit?: () => void;
-  onComplete?: (score: number) => void;
+  onComplete?: (score: number, concerns?: ConcernId[]) => void;
 }) {
   const r = computeSocial(answers);
   useEffect(() => {

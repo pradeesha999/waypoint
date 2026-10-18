@@ -25,6 +25,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import PhysicalActivityQuestionnaire from "@/components/PhysicalActivityQuestionnaire";
+import { CONCERN_ORDER, CONCERN_TEXT, ConcernId } from "@/lib/concerns";
 import SleepQuestionnaire from "@/components/SleepQuestionnaire";
 import NutritionQuestionnaire from "@/components/NutritionQuestionnaire";
 import SocialConnectionQuestionnaire from "@/components/SocialConnectionQuestionnaire";
@@ -113,6 +114,11 @@ export default function UnifiedAssessment({
     "composite.scores",
     {}
   );
+  // Results of clinical concern reported by each chapter, shown on the final screen (FR8).
+  const [concerns, setConcerns] = usePersistentState<Partial<Record<PillarId, ConcernId[]>>>(
+    "composite.concerns",
+    {}
+  );
   const [lastScore, setLastScore] = useState<number | null>(null);
   // Position inside the chapter currently on screen, reported up by the chapter itself, so the
   // progress bar advances with every question rather than jumping once per domain.
@@ -197,6 +203,7 @@ export default function UnifiedAssessment({
     return (
       <FinalScore
         scores={scores}
+        concerns={CONCERN_ORDER.filter((c) => Object.values(concerns).some((list) => list?.includes(c)))}
         onFinish={onFinish}
         signedIn={signedIn}
         onRequireAuth={onRequireAuth}
@@ -204,6 +211,7 @@ export default function UnifiedAssessment({
         onRestart={() => {
           clearAllDrafts();
           setScores({});
+          setConcerns({});
           setChapterIndex(0);
           setStage("warmup");
         }}
@@ -230,7 +238,10 @@ export default function UnifiedAssessment({
   }
 
   // ---- A chapter ----
-  const done = (score: number) => finishChapter(chapter.id, score);
+  const done = (score: number, found: ConcernId[] = []) => {
+    setConcerns({ ...concerns, [chapter.id]: found });
+    finishChapter(chapter.id, score);
+  };
   return (
     <div className="card">
       <FlowProgress
@@ -437,6 +448,7 @@ function ChapterTransition({
 // Final reveal, with a short count-up — the one moment worth savouring.
 function FinalScore({
   scores,
+  concerns = [],
   onFinish,
   onRestart,
   signedIn,
@@ -444,6 +456,7 @@ function FinalScore({
   onViewHistory,
 }: {
   scores: Partial<Record<PillarId, number>>;
+  concerns?: ConcernId[];
   onFinish?: (scores: Partial<Record<PillarId, number>>) => void;
   onRestart: () => void;
   signedIn?: boolean;
@@ -528,6 +541,16 @@ function FinalScore({
                   {weakest.label} · {Math.round(scores[weakest.id] as number)}
                 </b>
               </div>
+            </div>
+          )}
+          {concerns.length > 0 && (
+            <div role="status">
+              <p className="section-label">Worth talking to a doctor about</p>
+              {concerns.map((c) => (
+                <p className="note note-warn" key={c}>
+                  {CONCERN_TEXT[c]}
+                </p>
+              ))}
             </div>
           )}
           <p className="note">
